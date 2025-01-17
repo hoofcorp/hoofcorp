@@ -66,7 +66,7 @@ if uploaded_file:
         filtered_data = filtered_data[filtered_data["세분류"].isin(sub_categories)]
     filtered_data = filtered_data[
         (filtered_data["판매가"] >= min_price) & 
-        (filtered_data["판매가"] <= max_price) &
+        (filtered_data["판매가"] <= max_price) & 
         (filtered_data["매출"] >= min_sales) & 
         (filtered_data["매출"] <= max_sales)
     ]
@@ -78,6 +78,15 @@ if uploaded_file:
     # 결과 출력
     st.write(f"총 결과: {len(filtered_data)}개")
     if len(filtered_data) > 0:
+        # 총매출과 평균 판매가 계산
+        total_sales = filtered_data["매출"].sum()
+        avg_price = filtered_data["판매가"].mean()
+
+        # 계산 결과 출력
+        st.write(f"**총매출**: {total_sales:,}원")
+        st.write(f"**평균 판매가**: {avg_price:,.2f}원")
+
+        # 필터링된 데이터 출력
         st.dataframe(filtered_data)
 
         # 다운로드 버튼 추가
