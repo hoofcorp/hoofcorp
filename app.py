@@ -36,8 +36,8 @@ if uploaded_file:
 
     # 필터링 조건 UI
     st.header("검색 조건")
-    grades = st.multiselect("행사등급 선택", options=df["행사등급"].dropna().unique().tolist())
-    malls = st.multiselect("운영몰 선택", options=df["운영몰"].dropna().unique().tolist())
+    grades = st.multiselect("행사등급 선택", options=df["행사등급"].drop나().unique().tolist())
+    malls = st.multiselect("운영몰 선택", options=df["운영몰"].drop나().unique().tolist())
     brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].drop나().unique().tolist())
     categories = st.multiselect("카테고리 선택", options=df["카테고리"].drop나().unique().tolist())
     sub_categories = st.multiselect("세분류 선택", options=df["세분류"].drop나().unique().tolist())
