@@ -1,11 +1,14 @@
+import subprocess
 import streamlit as st
 import pandas as pd
 import io
-import mxnet as mx
 from gluonts.dataset.common import ListDataset
 from gluonts.model.deepar import DeepAREstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
+
+# 필요한 패키지 설치
+subprocess.run(["pip", "install", "mxnet", "gluonts"])
 
 # Streamlit 앱 헤더
 st.title("사용자 파일 업로드 기반 데이터 처리 앱")
@@ -35,9 +38,9 @@ if uploaded_file:
     st.header("검색 조건")
     grades = st.multiselect("행사등급 선택", options=df["행사등급"].dropna().unique().tolist())
     malls = st.multiselect("운영몰 선택", options=df["운영몰"].dropna().unique().tolist())
-    brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].dropna().unique().tolist())
-    categories = st.multiselect("카테고리 선택", options=df["카테고리"].dropna().unique().tolist())
-    sub_categories = st.multiselect("세분류 선택", options=df["세분류"].dropna().unique().tolist())
+    brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].drop나().unique().tolist())
+    categories = st.multiselect("카테고리 선택", options=df["카테고리"].drop나().unique().tolist())
+    sub_categories = st.multiselect("세분류 선택", options=df["세분류"].drop나().unique().tolist())
     min_price, max_price = st.slider(
         "판매가 범위",
         min_value=int(df["판매가"].min()),
@@ -113,3 +116,15 @@ if uploaded_file:
         # 다운로드 버튼 추가
         output = io.BytesIO()
         filtered_data.to_excel(output, index=False, engine='openpyxl')
+        output.seek(0)
+
+        st.download_button(
+            label="결과 다운로드",
+            data=output,
+            file_name="filtered_results.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.warning("조건에 맞는 데이터가 없습니다.")
+else:
+    st.info("엑셀 파일을 업로드해주세요.")
