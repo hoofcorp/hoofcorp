@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
 import io
+import mxnet as mx
+from gluonts.dataset.common import ListDataset
+from gluonts.model.deepar import DeepAREstimator
+from gluonts.trainer import Trainer
+from gluonts.evaluation.backtest import make_evaluation_predictions
 
 # Streamlit 앱 헤더
 st.title("사용자 파일 업로드 기반 데이터 처리 앱")
@@ -75,6 +80,20 @@ if uploaded_file:
         (filtered_data["진행 날짜"] <= pd.Timestamp(end_date))
     ]
 
+    # 예측을 위한 데이터셋 생성
+    train_ds = ListDataset([{ "start": data.index[0], "target": data["매출"] }], freq="M")
+
+    # 딥AR 모델 생성 및 학습
+    estimator = DeepAREstimator(freq="M", prediction_length=12, trainer=Trainer(epochs=10))
+    predictor = estimator.train(train_ds)
+
+    # 예측
+    forecast_it, ts_it = make_evaluation_predictions(train_ds, predictor=predictor, num_samples=100)
+    forecasts = list(forecast_it)
+
+    next_year_forecast = forecasts[0].mean
+    next_month_forecast = next_year_forecast[0]
+
     # 결과 출력
     st.write(f"총 결과: {len(filtered_data)}개")
     if len(filtered_data) > 0:
@@ -85,6 +104,8 @@ if uploaded_file:
         # 계산 결과 출력
         st.write(f"**총매출**: {total_sales:,}원")
         st.write(f"**평균 판매가**: {avg_price:,.2f}원")
+        st.write(f"**다음년도 예상 매출**: {next_year_forecast.sum():,}원")
+        st.write(f"**다음달 예상 매출**: {next_month_forecast:,}원")
 
         # 필터링된 데이터 출력
         st.dataframe(filtered_data)
@@ -92,15 +113,3 @@ if uploaded_file:
         # 다운로드 버튼 추가
         output = io.BytesIO()
         filtered_data.to_excel(output, index=False, engine='openpyxl')
-        output.seek(0)
-
-        st.download_button(
-            label="결과 다운로드",
-            data=output,
-            file_name="filtered_results.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-    else:
-        st.warning("조건에 맞는 데이터가 없습니다.")
-else:
-    st.info("엑셀 파일을 업로드해주세요.")
