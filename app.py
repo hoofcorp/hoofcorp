@@ -2,13 +2,15 @@ import subprocess
 import streamlit as st
 import pandas as pd
 import io
+
+# 필요한 패키지 설치
+subprocess.run(["pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
+subprocess.run(["pip", "install", "mxnet", "gluonts"])
+
 from gluonts.dataset.common import ListDataset
 from gluonts.model.deepar import DeepAREstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
-
-# 필요한 패키지 설치
-subprocess.run(["pip", "install", "mxnet", "gluonts"])
 
 # Streamlit 앱 헤더
 st.title("사용자 파일 업로드 기반 데이터 처리 앱")
