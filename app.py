@@ -1,8 +1,6 @@
-import subprocess
 import streamlit as st
 import pandas as pd
 import io
-from prophet import Prophet
 
 # Streamlit 앱 헤더
 st.title("사용자 파일 업로드 기반 데이터 처리 앱")
@@ -31,10 +29,10 @@ if uploaded_file:
     # 필터링 조건 UI
     st.header("검색 조건")
     grades = st.multiselect("행사등급 선택", options=df["행사등급"].dropna().unique().tolist())
-    malls = st.multiselect("운영몰 선택", options=df["운영몰"].drop나().unique().tolist())
-    brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].drop나().unique().tolist())
-    categories = st.multiselect("카테고리 선택", options=df["카테고리"].drop나().unique().tolist())
-    sub_categories = st.multiselect("세분류 선택", options=df["세분류"].drop나().unique().tolist())
+    malls = st.multiselect("운영몰 선택", options=df["운영몰"].dropna().unique().tolist())
+    brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].dropna().unique().tolist())
+    categories = st.multiselect("카테고리 선택", options=df["카테고리"].dropna().unique().tolist())
+    sub_categories = st.multiselect("세분류 선택", options=df["세분류"].dropna().unique().tolist())
     min_price, max_price = st.slider(
         "판매가 범위",
         min_value=int(df["판매가"].min()),
@@ -77,21 +75,6 @@ if uploaded_file:
         (filtered_data["진행 날짜"] <= pd.Timestamp(end_date))
     ]
 
-    # 예측을 위한 데이터 준비
-    df_prophet = filtered_data[['진행 날짜', '매출']].rename(columns={'진행 날짜': 'ds', '매출': 'y'})
-
-    # prophet 모델 생성 및 학습
-    model = Prophet()
-    model.fit(df_prophet)
-
-    # 내년도와 다음 달 예측
-    future = model.make_future_dataframe(periods=12, freq='M')
-    forecast = model.predict(future)
-
-    # 다음년도 예상 매출
-    next_year_forecast = forecast[forecast['ds'].dt.year == pd.to_datetime(start_date).year + 1]['yhat'].sum()
-    next_month_forecast = forecast[forecast['ds'] == pd.to_datetime(start_date) + pd.DateOffset(months=1)]['yhat'].values[0]
-
     # 결과 출력
     st.write(f"총 결과: {len(filtered_data)}개")
     if len(filtered_data) > 0:
@@ -102,8 +85,6 @@ if uploaded_file:
         # 계산 결과 출력
         st.write(f"**총매출**: {total_sales:,}원")
         st.write(f"**평균 판매가**: {avg_price:,.2f}원")
-        st.write(f"**다음년도 예상 매출**: {next_year_forecast:,}원")
-        st.write(f"**다음달 예상 매출**: {next_month_forecast:,}원")
 
         # 필터링된 데이터 출력
         st.dataframe(filtered_data)
