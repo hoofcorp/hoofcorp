@@ -91,21 +91,33 @@ if uploaded_file:
         st.header("매출 예측")
         periods_to_forecast = st.slider("예측할 개월 수", 1, 24, 12)
 
-        # 날짜별 매출 집계
+        # 월별 매출 데이터 준비
         filtered_data["월"] = filtered_data["진행 날짜"].dt.to_period("M")
         monthly_sales = filtered_data.groupby("월")["매출"].sum().reset_index()
         monthly_sales["월"] = monthly_sales["월"].dt.to_timestamp()
 
+        # 데이터의 계절성 감지
+        if len(monthly_sales) >= 24:  # 최소 2개의 계절 주기(24개월)가 있어야 계절성 모델 적용 가능
+            seasonal_periods = 12  # 12개월(1년) 단위 계절성
+            seasonal_type = "add"  # 계절성을 추가 방식으로 모델링
+            st.write("**계절성이 감지되었습니다. 계절성을 반영한 모델을 사용합니다.**")
+        else:
+            seasonal_periods = None
+            seasonal_type = None
+            st.write("**데이터가 부족하여 계절성이 제거된 모델을 사용합니다.**")
+
+        # 모델 생성
         try:
             model = ExponentialSmoothing(
                 monthly_sales["매출"],
-                seasonal="add",
-                seasonal_periods=12
+                trend="add",  # 트렌드를 추가 방식으로 모델링
+                seasonal=seasonal_type,
+                seasonal_periods=seasonal_periods
             )
             model_fit = model.fit()
             forecast = model_fit.forecast(periods_to_forecast)
 
-            # 예측 결과 데이터프레임
+            # 예측 결과 생성
             forecast_dates = pd.date_range(
                 start=monthly_sales["월"].iloc[-1] + pd.offsets.MonthBegin(),
                 periods=periods_to_forecast,
@@ -116,8 +128,7 @@ if uploaded_file:
                 "예상 매출": forecast
             })
 
-            # 시각화
-            st.subheader("예측 결과 시각화")
+            # 결과 시각화
             plt.figure(figsize=(10, 6))
             plt.plot(monthly_sales["월"], monthly_sales["매출"], label="실제 매출")
             plt.plot(forecast_df["예측 날짜"], forecast_df["예상 매출"], label="예상 매출", linestyle="--")
@@ -127,7 +138,7 @@ if uploaded_file:
             plt.title("매출 예측")
             st.pyplot(plt)
 
-            # 예측 데이터 출력
+            # 예측 결과 표시
             st.subheader("예측 데이터")
             st.dataframe(forecast_df)
 
