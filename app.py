@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
 import io
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+import matplotlib.pyplot as plt
 
 # Streamlit 앱 헤더
-st.title("사용자 파일 업로드 기반 데이터 처리 앱")
+st.title("매출 예측 기반 데이터 처리 앱")
 
 # 파일 업로드 UI
 uploaded_file = st.file_uploader("엑셀 파일을 업로드하세요", type=["xlsx", "xls"])
@@ -18,7 +20,6 @@ if uploaded_file:
         df["운영몰"] = df["운영몰"].str.strip().str.upper()    # 공백 제거 및 대소문자 표준화
         return df
 
-    # 업로드된 파일 읽기
     try:
         df = load_data(uploaded_file)
         st.success("파일이 정상적으로 로드되었습니다!")
@@ -82,24 +83,68 @@ if uploaded_file:
         total_sales = filtered_data["매출"].sum()
         avg_price = filtered_data["판매가"].mean()
 
-        # 계산 결과 출력
         st.write(f"**총매출**: {total_sales:,}원")
         st.write(f"**평균 판매가**: {avg_price:,.2f}원")
-
-        # 필터링된 데이터 출력
         st.dataframe(filtered_data)
 
-        # 다운로드 버튼 추가
-        output = io.BytesIO()
-        filtered_data.to_excel(output, index=False, engine='openpyxl')
-        output.seek(0)
+        # 매출 예측
+        st.header("매출 예측")
+        periods_to_forecast = st.slider("예측할 개월 수", 1, 24, 12)
 
-        st.download_button(
-            label="결과 다운로드",
-            data=output,
-            file_name="filtered_results.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # 날짜별 매출 집계
+        filtered_data["월"] = filtered_data["진행 날짜"].dt.to_period("M")
+        monthly_sales = filtered_data.groupby("월")["매출"].sum().reset_index()
+        monthly_sales["월"] = monthly_sales["월"].dt.to_timestamp()
+
+        try:
+            model = ExponentialSmoothing(
+                monthly_sales["매출"],
+                seasonal="add",
+                seasonal_periods=12
+            )
+            model_fit = model.fit()
+            forecast = model_fit.forecast(periods_to_forecast)
+
+            # 예측 결과 데이터프레임
+            forecast_dates = pd.date_range(
+                start=monthly_sales["월"].iloc[-1] + pd.offsets.MonthBegin(),
+                periods=periods_to_forecast,
+                freq="MS"
+            )
+            forecast_df = pd.DataFrame({
+                "예측 날짜": forecast_dates,
+                "예상 매출": forecast
+            })
+
+            # 시각화
+            st.subheader("예측 결과 시각화")
+            plt.figure(figsize=(10, 6))
+            plt.plot(monthly_sales["월"], monthly_sales["매출"], label="실제 매출")
+            plt.plot(forecast_df["예측 날짜"], forecast_df["예상 매출"], label="예상 매출", linestyle="--")
+            plt.legend()
+            plt.xlabel("날짜")
+            plt.ylabel("매출")
+            plt.title("매출 예측")
+            st.pyplot(plt)
+
+            # 예측 데이터 출력
+            st.subheader("예측 데이터")
+            st.dataframe(forecast_df)
+
+            # 다운로드 버튼 추가
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                forecast_df.to_excel(writer, index=False)
+            output.seek(0)
+
+            st.download_button(
+                label="예측 결과 다운로드",
+                data=output,
+                file_name="sales_forecast.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception as e:
+            st.error(f"예측 중 오류가 발생했습니다: {e}")
     else:
         st.warning("조건에 맞는 데이터가 없습니다.")
 else:
