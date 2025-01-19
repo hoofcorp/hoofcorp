@@ -16,7 +16,7 @@ st.set_page_config(
 st.title("📊 매출 예측 대시보드")
 st.markdown("""
     이 대시보드는 매출 데이터를 분석하고 예측하기 위해 설계되었습니다.
-    데이터 필터링, 대화형 시각화, 예측 결과 다운로드를 제공합니다.
+    데이터를 필터링하고 시각화하며 예측 결과를 확인할 수 있습니다.
 """)
 
 # 파일 업로드
@@ -35,8 +35,26 @@ if uploaded_file:
     # 데이터 필터링 UI
     with st.sidebar:
         st.header("필터 설정")
-        grades = st.multiselect("행사등급 선택", options=df["행사등급"].dropna().unique().tolist())
+        grades = st.multiselect("행사 등급 선택", options=df["행사등급"].dropna().unique().tolist())
         malls = st.multiselect("운영몰 선택", options=df["운영몰"].dropna().unique().tolist())
+        brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].dropna().unique().tolist())
+        categories = st.multiselect("카테고리 선택", options=df["카테고리"].dropna().unique().tolist())
+        sub_categories = st.multiselect("세분류 선택", options=df["세분류"].dropna().unique().tolist())
+        
+        min_price, max_price = st.slider(
+            "판매가 범위",
+            min_value=int(df["판매가"].min()),
+            max_value=int(df["판매가"].max()),
+            value=(int(df["판매가"].min()), int(df["판매가"].max()))
+        )
+        
+        min_sales, max_sales = st.slider(
+            "매출 범위",
+            min_value=int(df["매출"].min()),
+            max_value=int(df["매출"].max()),
+            value=(int(df["매출"].min()), int(df["매출"].max()))
+        )
+        
         start_date, end_date = st.date_input(
             "날짜 범위 선택",
             value=[df["진행 날짜"].min(), df["진행 날짜"].max()],
@@ -50,6 +68,20 @@ if uploaded_file:
         filtered_data = filtered_data[filtered_data["행사등급"].isin(grades)]
     if malls:
         filtered_data = filtered_data[filtered_data["운영몰"].isin(malls)]
+    if brands:
+        filtered_data = filtered_data[filtered_data["브랜드명"].isin(brands)]
+    if categories:
+        filtered_data = filtered_data[filtered_data["카테고리"].isin(categories)]
+    if sub_categories:
+        filtered_data = filtered_data[filtered_data["세분류"].isin(sub_categories)]
+    
+    filtered_data = filtered_data[
+        (filtered_data["판매가"] >= min_price) & 
+        (filtered_data["판매가"] <= max_price) & 
+        (filtered_data["매출"] >= min_sales) & 
+        (filtered_data["매출"] <= max_sales)
+    ]
+    
     filtered_data = filtered_data[
         (filtered_data["진행 날짜"] >= pd.Timestamp(start_date)) &
         (filtered_data["진행 날짜"] <= pd.Timestamp(end_date))
