@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # 제목 및 설명
-st.title("📊 다중 모델 매출 예측 대시보드")
+st.title("📊 다중 모델 기반 매출 예측 대시보드")
 st.markdown("""
     이 대시보드는 매출 데이터를 필터링하고 다양한 예측 모델을 비교할 수 있도록 설계되었습니다.
 """)
@@ -112,13 +112,23 @@ if uploaded_file:
         results = {}
 
         # 1. Prophet 모델 예측
-        df_prophet = monthly_sales.rename(columns={"월": "ds", "매출": "y"})
-        model_prophet = Prophet()
-        model_prophet.fit(df_prophet)
+        if len(monthly_sales) >= 2:  # 최소 2개 이상의 데이터가 있어야 Prophet 실행 가능
+            df_prophet = monthly_sales.rename(columns={"월": "ds", "매출": "y"})
+            model_prophet = Prophet()
+            model_prophet.fit(df_prophet)
 
-        future = model_prophet.make_future_dataframe(periods=periods_to_forecast, freq="MS")
-        forecast_prophet = model_prophet.predict(future)
-        results["Prophet"] = forecast_prophet[["ds", "yhat"]]
+            future = model_prophet.make_future_dataframe(periods=periods_to_forecast, freq="MS")
+            forecast_prophet = model_prophet.predict(future)
+            results["Prophet"] = forecast_prophet[["ds", "yhat"]]
+
+            # Prophet 결과 시각화
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(x=monthly_sales["월"], y=monthly_sales["매출"], mode="lines", name="실제 매출"))
+            fig1.add_trace(go.Scatter(x=forecast_prophet["ds"], y=forecast_prophet["yhat"], mode="lines", name="Prophet 예측"))
+            fig1.update_layout(title="Prophet 예측 결과", xaxis_title="날짜", yaxis_title="매출")
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.warning("📉 Prophet 모델을 실행하기에 데이터가 충분하지 않습니다. 필터를 변경하거나 데이터를 확인하세요.")
 
         # 2. Holt-Winters 모델 예측
         model_hw = ExponentialSmoothing(monthly_sales["매출"], seasonal="add", seasonal_periods=12, trend="add")
@@ -127,6 +137,13 @@ if uploaded_file:
         forecast_dates_hw = pd.date_range(start=monthly_sales["월"].iloc[-1] + pd.offsets.MonthBegin(), periods=periods_to_forecast, freq="MS")
         results["Holt-Winters"] = pd.DataFrame({"날짜": forecast_dates_hw, "예측": forecast_hw.values})
 
+        # Holt-Winters 결과 시각화
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(x=monthly_sales["월"], y=monthly_sales["매출"], mode="lines", name="실제 매출"))
+        fig2.add_trace(go.Scatter(x=forecast_dates_hw, y=forecast_hw, mode="lines", name="Holt-Winters 예측"))
+        fig2.update_layout(title="Holt-Winters 예측 결과", xaxis_title="날짜", yaxis_title="매출")
+        st.plotly_chart(fig2, use_container_width=True)
+
         # 3. ARIMA 모델 예측
         model_arima = ARIMA(monthly_sales["매출"], order=(5, 1, 0))
         model_arima_fit = model_arima.fit()
@@ -134,24 +151,22 @@ if uploaded_file:
         forecast_dates_arima = pd.date_range(start=monthly_sales["월"].iloc[-1] + pd.offsets.MonthBegin(), periods=periods_to_forecast, freq="MS")
         results["ARIMA"] = pd.DataFrame({"날짜": forecast_dates_arima, "예측": forecast_arima.values})
 
+        # ARIMA 결과 시각화
+        fig3 = go.Figure()
+        fig3.add_trace(go.Scatter(x=monthly_sales["월"], y=monthly_sales["매출"], mode="lines", name="실제 매출"))
+        fig3.add_trace(go.Scatter(x=forecast_dates_arima, y=forecast_arima, mode="lines", name="ARIMA 예측"))
+        fig3.update_layout(title="ARIMA 예측 결과", xaxis_title="날짜", yaxis_title="매출")
+        st.plotly_chart(fig3, use_container_width=True)
+
         # 모델 비교 테이블
         comparison = pd.DataFrame({
             "날짜": forecast_dates_hw,
-            "Prophet": forecast_prophet["yhat"].iloc[-periods_to_forecast:].values,
+            "Prophet": forecast_prophet["yhat"].iloc[-periods_to_forecast:].values if "Prophet" in results else None,
             "Holt-Winters": forecast_hw.values,
             "ARIMA": forecast_arima.values
         })
         st.write("📊 모델 비교 결과")
         st.write(comparison)
-
-        # 모델 비교 그래프
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=monthly_sales["월"], y=monthly_sales["매출"], mode="lines", name="실제 매출"))
-        fig.add_trace(go.Scatter(x=forecast_dates_hw, y=forecast_hw, mode="lines", name="Holt-Winters 예측"))
-        fig.add_trace(go.Scatter(x=forecast_prophet["ds"], y=forecast_prophet["yhat"], mode="lines", name="Prophet 예측"))
-        fig.add_trace(go.Scatter(x=forecast_dates_arima, y=forecast_arima, mode="lines", name="ARIMA 예측"))
-        fig.update_layout(title="모델 예측 비교", xaxis_title="날짜", yaxis_title="매출")
-        st.plotly_chart(fig, use_container_width=True)
 
         # 다운로드 버튼
         st.download_button(
