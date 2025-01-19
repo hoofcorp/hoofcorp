@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
-import io
+from googleapiclient.discovery import build
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import plotly.express as px
 from st_aggrid import AgGrid
-from googleapiclient.discovery import build
 
 # YouTube API 키
 YOUTUBE_API_KEY = "AIzaSyAHjsvQRyMnFVsjbFgj02Ws5dXMgnTOD0M"
@@ -21,9 +20,19 @@ def fetch_youtube_data(keyword, max_results=10):
         maxResults=max_results
     )
     response = request.execute()
+
+    # 동영상 ID 추출
+    video_ids = [item["id"]["videoId"] for item in response["items"]]
+    stats_request = youtube.videos().list(
+        part="statistics",
+        id=",".join(video_ids)
+    )
+    stats_response = stats_request.execute()
+    stats_dict = {item["id"]: item["statistics"].get("viewCount", "0") for item in stats_response["items"]}
+
     data = [
         {
-            "제목": item["snippet"]["title"],
+            "제목": f"{item['snippet']['title']} ({stats_dict.get(item['id']['videoId'], '0')}회 조회)",
             "설명": item["snippet"]["description"],
             "채널명": item["snippet"]["channelTitle"],
             "게시일": item["snippet"]["publishedAt"],
@@ -67,28 +76,28 @@ if uploaded_file:
         brands = st.multiselect("브랜드명 선택", options=df["브랜드명"].dropna().unique().tolist())
         categories = st.multiselect("카테고리 선택", options=df["카테고리"].dropna().unique().tolist())
         sub_categories = st.multiselect("세분류 선택", options=df["세분류"].dropna().unique().tolist())
-        
+
         min_price, max_price = st.slider(
             "판매가 범위",
             min_value=int(df["판매가"].min()),
             max_value=int(df["판매가"].max()),
             value=(int(df["판매가"].min()), int(df["판매가"].max()))
         )
-        
+
         min_sales, max_sales = st.slider(
             "매출 범위",
             min_value=int(df["매출"].min()),
             max_value=int(df["매출"].max()),
             value=(int(df["매출"].min()), int(df["매출"].max()))
         )
-        
+
         start_date, end_date = st.date_input(
             "날짜 범위 선택",
             value=[df["진행 날짜"].min(), df["진행 날짜"].max()],
             min_value=df["진행 날짜"].min(),
             max_value=df["진행 날짜"].max()
         )
-    
+
     # YouTube 데이터 필터 설정
     with st.sidebar:
         st.header("YouTube 데이터 필터 설정")
@@ -107,14 +116,14 @@ if uploaded_file:
         filtered_data = filtered_data[filtered_data["카테고리"].isin(categories)]
     if sub_categories:
         filtered_data = filtered_data[filtered_data["세분류"].isin(sub_categories)]
-    
+
     filtered_data = filtered_data[
-        (filtered_data["판매가"] >= min_price) & 
-        (filtered_data["판매가"] <= max_price) & 
-        (filtered_data["매출"] >= min_sales) & 
+        (filtered_data["판매가"] >= min_price) &
+        (filtered_data["판매가"] <= max_price) &
+        (filtered_data["매출"] >= min_sales) &
         (filtered_data["매출"] <= max_sales)
     ]
-    
+
     filtered_data = filtered_data[
         (filtered_data["진행 날짜"] >= pd.Timestamp(start_date)) &
         (filtered_data["진행 날짜"] <= pd.Timestamp(end_date))
@@ -138,7 +147,17 @@ if uploaded_file:
         st.subheader(f"🔍 YouTube 검색 결과 - '{youtube_keyword}'")
         youtube_data = fetch_youtube_data(youtube_keyword, max_results)
         youtube_df = pd.DataFrame(youtube_data)
-        st.dataframe(youtube_df)
+
+        # 링크를 클릭 가능한 HTML 형식으로 변환
+        youtube_df["링크"] = youtube_df["링크"].apply(
+            lambda x: f'<a href="{x}" target="_blank">동영상 보기</a>'
+        )
+
+        # 데이터 표시 (Streamlit HTML 렌더링 사용)
+        st.write(
+            youtube_df[["제목", "링크", "설명", "채널명", "게시일"]].to_html(escape=False, index=False),
+            unsafe_allow_html=True
+        )
 
         # YouTube 데이터 다운로드 버튼
         st.download_button(
