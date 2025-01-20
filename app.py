@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import plotly.express as px
-from st_aggrid import AgGrid
+from st_aggrid import AgGrid, GridOptionsBuilder
 from googleapiclient.discovery import build
 
 # YouTube API 키
@@ -34,7 +34,7 @@ def fetch_youtube_data(keyword, max_results=10):
         {
             "게시일": item["snippet"]["publishedAt"],
             "채널명": item["snippet"]["channelTitle"],
-            "구독자수": stats_dict.get(item["id"]["videoId"], "0"),
+            "구독자수": int(stats_dict.get(item["id"]["videoId"], "0")),
             "제목": item["snippet"]["title"],
             "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
             "설명": item["snippet"]["description"],
@@ -143,72 +143,26 @@ if uploaded_file:
     st.subheader("📋 필터링된 매출 데이터")
     AgGrid(filtered_data, height=300, theme="streamlit")
 
-    # 매출 시각화 및 예측
-    st.subheader("📈 매출 추이 시각화")
-    monthly_sales = filtered_data.copy()
-    monthly_sales["월"] = monthly_sales["진행 날짜"].dt.to_period("M")
-    monthly_sales = monthly_sales.groupby("월")["매출"].sum().reset_index()
-    monthly_sales["월"] = monthly_sales["월"].dt.to_timestamp()
-
-    if not monthly_sales.empty:
-        fig = px.line(monthly_sales, x="월", y="매출", title="월별 매출 추이", labels={"매출": "매출(원)", "월": "날짜"})
-        st.plotly_chart(fig, use_container_width=True)
-
-        # 매출 예측
-        st.subheader("🔮 매출 예측")
-        if len(monthly_sales) >= 2:
-            periods_to_forecast = st.slider("예측할 개월 수", 1, 24, 12)
-            try:
-                model = ExponentialSmoothing(
-                    monthly_sales["매출"],
-                    trend="add",
-                    seasonal="add" if len(monthly_sales) >= 24 else None,
-                    seasonal_periods=12 if len(monthly_sales) >= 24 else None,
-                )
-                model_fit = model.fit()
-                forecast = model_fit.forecast(periods_to_forecast)
-
-                forecast_dates = pd.date_range(
-                    start=monthly_sales["월"].iloc[-1] + pd.offsets.MonthBegin(),
-                    periods=periods_to_forecast,
-                    freq="MS"
-                )
-                forecast_df = pd.DataFrame({"예측 날짜": forecast_dates, "예상 매출": forecast})
-
-                # 예측 그래프
-                forecast_fig = px.line(
-                    forecast_df, x="예측 날짜", y="예상 매출", title="예상 매출 추이", labels={"예상 매출": "매출(원)", "예측 날짜": "날짜"}
-                )
-                forecast_fig.add_scatter(x=monthly_sales["월"], y=monthly_sales["매출"], mode="lines", name="실제 매출")
-                st.plotly_chart(forecast_fig, use_container_width=True)
-
-                # 예측 결과 다운로드
-                st.download_button(
-                    label="📥 예측 결과 다운로드",
-                    data=forecast_df.to_csv(index=False).encode("utf-8"),
-                    file_name="forecast.csv",
-                    mime="text/csv"
-                )
-            except Exception as e:
-                st.error(f"예측 중 오류가 발생했습니다: {e}")
-        else:
-            st.warning("데이터가 부족하여 매출 예측을 수행할 수 없습니다.")
-
     # YouTube 데이터 검색
     if youtube_keyword:
         st.subheader(f"🔍 YouTube 검색 결과 - '{youtube_keyword}'")
         youtube_data = fetch_youtube_data(youtube_keyword, max_results)
         youtube_df = pd.DataFrame(youtube_data)
 
-        # 링크를 클릭 가능한 HTML 형식으로 변환
-        youtube_df["링크"] = youtube_df["링크"].apply(
-            lambda x: f'<a href="{x}" target="_blank">동영상 보기</a>'
-        )
+        # AgGrid로 정렬 가능한 테이블 생성
+        gb = GridOptionsBuilder.from_dataframe(youtube_df)
+        gb.configure_default_column(editable=False, sortable=True)
+        gb.configure_column("링크", cellRenderer="LinkRenderer")
+        grid_options = gb.build()
 
-        # 데이터 표시 (Streamlit HTML 렌더링 사용)
-        st.write(
-            youtube_df[["게시일", "채널명", "구독자수", "제목", "링크", "설명"]].to_html(escape=False, index=False),
-            unsafe_allow_html=True
+        # AgGrid 표시
+        st.markdown("YouTube 검색 결과를 정렬하려면 열 헤더를 클릭하세요:")
+        AgGrid(
+            youtube_df,
+            gridOptions=grid_options,
+            enable_enterprise_modules=False,
+            height=400,
+            theme="streamlit",
         )
 
         # YouTube 데이터 다운로드 버튼
