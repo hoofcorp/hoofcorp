@@ -51,7 +51,7 @@ st.set_page_config(
 )
 
 # 제목 및 설명
-st.title("📊 매출 예측 및 마케팅 데이터")
+st.title("📊 후프 1.63_매출 예측 및 마케팅 데이터")
 st.markdown("""
     매출 데이터를 분석 및 예측, YouTube 데이터를 연동.
 """)
