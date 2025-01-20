@@ -16,7 +16,10 @@ def fetch_youtube_data(keyword, max_results=10):
         part="snippet",
         q=keyword,
         type="video",
-        maxResults=max_results
+        maxResults=max_results,
+        regionCode="KR",  # 지역을 한국으로 제한
+        relevanceLanguage="ko",  # 검색 언어를 한국어로 제한
+        order="relevance"  # 정렬 기준: 관련성
     )
     response = request.execute()
 
@@ -33,8 +36,9 @@ def fetch_youtube_data(keyword, max_results=10):
         {
             "게시일": item["snippet"]["publishedAt"],
             "채널명": item["snippet"]["channelTitle"],
-            "구독자수": int(stats_dict.get(item["id"]["videoId"], "0")),
+            "구독자수": int(stats_dict.get(item["id"]["videoId"], "0")),  # 구독자수 추가
             "제목": item["snippet"]["title"],
+            "조회수": int(stats_dict.get(item["id"]["videoId"], "0")),
             "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
             "설명": item["snippet"]["description"],
         }
@@ -97,12 +101,6 @@ if uploaded_file:
             min_value=df["진행 날짜"].min(),
             max_value=df["진행 날짜"].max()
         )
-
-    # YouTube 데이터 필터 설정
-    with st.sidebar:
-        st.header("YouTube 데이터 필터 설정")
-        youtube_keyword = st.text_input("🔍 YouTube 검색 키워드 입력", placeholder="예: 신제품, 매출")
-        max_results = st.slider("YouTube 검색 결과 개수", min_value=1, max_value=50, value=10)
 
     # 매출 데이터 필터링
     filtered_data = df.copy()
@@ -193,23 +191,28 @@ if uploaded_file:
         else:
             st.warning("데이터가 부족하여 매출 예측을 수행할 수 없습니다.")
 
-    # YouTube 데이터 검색
-    if youtube_keyword:
-        st.subheader(f"🔍 YouTube 검색 결과 - '{youtube_keyword}'")
-        youtube_data = fetch_youtube_data(youtube_keyword, max_results)
-        youtube_df = pd.DataFrame(youtube_data)
+# YouTube 데이터 검색
+youtube_keyword = st.text_input("🔍 YouTube 검색 키워드 입력", placeholder="예: 신제품, 매출")
+max_results = st.slider("YouTube 검색 결과 개수", min_value=1, max_value=50, value=10)
 
-        # 데이터프레임 표시
-        st.markdown("YouTube 검색 결과를 정렬하려면 열 헤더를 클릭하세요:")
-        st.dataframe(youtube_df)
+if youtube_keyword:
+    st.subheader(f"🔍 YouTube 검색 결과 - '{youtube_keyword}'")
+    youtube_data = fetch_youtube_data(youtube_keyword, max_results)
+    youtube_df = pd.DataFrame(youtube_data)
 
-        # YouTube 데이터 다운로드 버튼
-        st.download_button(
-            label="📥 YouTube 데이터 다운로드 (CSV)",
-            data=youtube_df.to_csv(index=False).encode("utf-8"),
-            file_name=f"{youtube_keyword}_youtube_results.csv",
-            mime="text/csv"
-        )
+    # 데이터프레임 항목 순서 조정
+    youtube_df = youtube_df[["게시일", "채널명", "구독자수", "제목", "조회수", "링크", "설명"]]
 
+    # 데이터프레임 표시
+    st.markdown("YouTube 검색 결과를 정렬하려면 열 헤더를 클릭하세요:")
+    st.dataframe(youtube_df, height=400)
+
+    # YouTube 데이터 다운로드 버튼
+    st.download_button(
+        label="📥 YouTube 데이터 다운로드 (CSV)",
+        data=youtube_df.to_csv(index=False).encode("utf-8"),
+        file_name=f"{youtube_keyword}_youtube_results.csv",
+        mime="text/csv"
+    )
 else:
-    st.info("📤 데이터를 업로드하거나 YouTube 검색을 시작하세요.")
+    st.info("🔍 검색 키워드를 입력하여 YouTube 데이터를 가져오세요.")
