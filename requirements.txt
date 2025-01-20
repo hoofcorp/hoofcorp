@@ -1,7 +1,8 @@
 streamlit
-pandas
 statsmodels
+pandas
+numpy
 plotly
-st-aggrid
-google-api-python-client
+matplotlib
 wordcloud
+google-api-python-client
