@@ -5,55 +5,73 @@ import plotly.express as px
 from googleapiclient.discovery import build
 
 # YouTube API 키
-YOUTUBE_API_KEY = "AIzaSyAHjsvQRyMnFVsjbFgj02Ws5dXMgnTOD0M"
+YOUTUBE_API_KEY = "YOUR_API_KEY"  # 여기에 API 키를 입력하세요.
 
 # YouTube API 클라이언트 초기화
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
 # YouTube 데이터 가져오기 함수
 def fetch_youtube_data(keyword, max_results=10):
-    request = youtube.search().list(
+    # 동영상 검색 요청
+    search_request = youtube.search().list(
         part="snippet",
         q=keyword,
         type="video",
         maxResults=max_results,
-        regionCode="KR",  # 지역을 한국으로 제한
-        relevanceLanguage="ko",  # 검색 언어를 한국어로 제한
-        order="relevance"  # 정렬 기준: 관련성
+        regionCode="KR",  # 한국 지역 제한
+        relevanceLanguage="ko",  # 한국어로 검색
+        order="relevance"  # 관련성 기준 정렬
     )
-    response = request.execute()
+    search_response = search_request.execute()
 
-    # 동영상 ID 추출
-    video_ids = [item["id"]["videoId"] for item in response["items"]]
-    stats_request = youtube.videos().list(
+    # 동영상 및 채널 ID 추출
+    video_ids = [item["id"]["videoId"] for item in search_response["items"]]
+    channel_ids = [item["snippet"]["channelId"] for item in search_response["items"]]
+
+    # 동영상 조회수 가져오기
+    video_stats_request = youtube.videos().list(
         part="statistics",
         id=",".join(video_ids)
     )
-    stats_response = stats_request.execute()
-    stats_dict = {item["id"]: item["statistics"].get("viewCount", "0") for item in stats_response["items"]}
+    video_stats_response = video_stats_request.execute()
+    video_stats_dict = {
+        item["id"]: item["statistics"]["viewCount"]
+        for item in video_stats_response["items"]
+    }
 
+    # 채널 구독자수 가져오기
+    channel_stats_request = youtube.channels().list(
+        part="statistics",
+        id=",".join(channel_ids)
+    )
+    channel_stats_response = channel_stats_request.execute()
+    channel_stats_dict = {
+        item["id"]: item["statistics"].get("subscriberCount", "0")
+        for item in channel_stats_response["items"]
+    }
+
+    # 데이터 정리
     data = [
         {
             "게시일": item["snippet"]["publishedAt"],
             "채널명": item["snippet"]["channelTitle"],
-            "구독자수": int(stats_dict.get(item["id"]["videoId"], "0")),  # 구독자수 추가
+            "구독자수": int(channel_stats_dict.get(item["snippet"]["channelId"], "0")),
             "제목": item["snippet"]["title"],
-            "조회수": int(stats_dict.get(item["id"]["videoId"], "0")),
+            "조회수": int(video_stats_dict.get(item["id"]["videoId"], "0")),
             "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
             "설명": item["snippet"]["description"],
         }
-        for item in response.get("items", [])
+        for item in search_response["items"]
     ]
     return data
 
-# 페이지 설정
+# Streamlit 페이지 설정
 st.set_page_config(
     page_title="매출 예측 및 YouTube 데이터 대시보드",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# 제목 및 설명
 st.title("📊 매출 예측 및 YouTube 데이터 대시보드")
 st.markdown("""
     이 대시보드는 매출 데이터를 분석하고 예측하며, YouTube 데이터를 연동하여 다양한 정보를 제공합니다.
