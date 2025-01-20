@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import plotly.express as px
+from st_aggrid import AgGrid, GridOptionsBuilder
 from googleapiclient.discovery import build
 
 # YouTube API 키
@@ -35,7 +36,7 @@ def fetch_youtube_data(keyword, max_results=10):
             "채널명": item["snippet"]["channelTitle"],
             "구독자수": int(stats_dict.get(item["id"]["videoId"], "0")),
             "제목": item["snippet"]["title"],
-            "링크": f'<a href="https://www.youtube.com/watch?v={item["id"]["videoId"]}" target="_blank">동영상 보기</a>',
+            "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
             "설명": item["snippet"]["description"],
         }
         for item in response.get("items", [])
@@ -199,13 +200,20 @@ if uploaded_file:
         youtube_data = fetch_youtube_data(youtube_keyword, max_results)
         youtube_df = pd.DataFrame(youtube_data)
 
-        # 링크를 HTML 형식으로 클릭 가능하게 변환
-        youtube_df["링크"] = youtube_df["링크"].apply(lambda x: x)
+        # AgGrid로 정렬 가능한 테이블 생성
+        gb = GridOptionsBuilder.from_dataframe(youtube_df)
+        gb.configure_default_column(editable=False, sortable=True)
+        gb.configure_column("링크", cellRenderer="LinkRenderer")
+        grid_options = gb.build()
 
-        # 데이터 표시 (HTML로 렌더링하여 클릭 가능)
-        st.write(
-            youtube_df.to_html(escape=False, index=False),
-            unsafe_allow_html=True
+        # AgGrid 표시
+        st.markdown("YouTube 검색 결과를 정렬하려면 열 헤더를 클릭하세요:")
+        AgGrid(
+            youtube_df,
+            gridOptions=grid_options,
+            enable_enterprise_modules=False,
+            height=400,
+            theme="streamlit",
         )
 
         # YouTube 데이터 다운로드 버튼
