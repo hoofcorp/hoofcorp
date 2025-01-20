@@ -1,3 +1,9 @@
-pandas
 streamlit
-openpyxl
+statsmodels
+pandas
+numpy
+plotly
+matplotlib
+wordcloud
+google-api-python-client
+st-aggrid
