@@ -203,7 +203,7 @@ if uploaded_file:
         # AgGrid로 정렬 가능한 테이블 생성
         gb = GridOptionsBuilder.from_dataframe(youtube_df)
         gb.configure_default_column(editable=False, sortable=True)
-        gb.configure_column("링크", cellRenderer="LinkRenderer")
+        gb.configure_column("링크", cellRenderer="LinkRenderer")  # 링크 열 클릭 가능
         grid_options = gb.build()
 
         # AgGrid 표시
