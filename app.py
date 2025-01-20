@@ -36,7 +36,7 @@ def fetch_youtube_data(keyword, max_results=10):
             "채널명": item["snippet"]["channelTitle"],
             "구독자수": int(stats_dict.get(item["id"]["videoId"], "0")),
             "제목": item["snippet"]["title"],
-            "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
+            "링크": f'<a href="https://www.youtube.com/watch?v={item["id"]["videoId"]}" target="_blank">동영상 보기</a>',
             "설명": item["snippet"]["description"],
         }
         for item in response.get("items", [])
@@ -203,7 +203,7 @@ if uploaded_file:
         # AgGrid로 정렬 가능한 테이블 생성
         gb = GridOptionsBuilder.from_dataframe(youtube_df)
         gb.configure_default_column(editable=False, sortable=True)
-        gb.configure_column("링크", cellRenderer="LinkRenderer")
+        gb.configure_column("링크", cellRenderer="htmlRenderer")  # HTML 렌더링을 사용해 링크 활성화
         grid_options = gb.build()
 
         # AgGrid 표시
