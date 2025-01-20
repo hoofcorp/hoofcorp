@@ -32,11 +32,12 @@ def fetch_youtube_data(keyword, max_results=10):
 
     data = [
         {
-            "제목": f"{item['snippet']['title']} ({stats_dict.get(item['id']['videoId'], '0')}회 조회)",
-            "설명": item["snippet"]["description"],
-            "채널명": item["snippet"]["channelTitle"],
             "게시일": item["snippet"]["publishedAt"],
-            "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}"
+            "채널명": item["snippet"]["channelTitle"],
+            "구독자수": stats_dict.get(item["id"]["videoId"], "0"),  # 구독자수 추가
+            "제목": item["snippet"]["title"],
+            "링크": f"https://www.youtube.com/watch?v={item['id']['videoId']}",
+            "설명": item["snippet"]["description"],
         }
         for item in response.get("items", [])
     ]
@@ -142,58 +143,6 @@ if uploaded_file:
     st.subheader("📋 필터링된 매출 데이터")
     AgGrid(filtered_data, height=300, theme="streamlit")
 
-    # 매출 시각화
-    st.subheader("📈 매출 추이 시각화")
-    monthly_sales = filtered_data.copy()
-    monthly_sales["월"] = monthly_sales["진행 날짜"].dt.to_period("M")
-    monthly_sales = monthly_sales.groupby("월")["매출"].sum().reset_index()
-    monthly_sales["월"] = monthly_sales["월"].dt.to_timestamp()
-
-    if not monthly_sales.empty:
-        fig = px.line(monthly_sales, x="월", y="매출", title="월별 매출 추이", labels={"매출": "매출(원)", "월": "날짜"})
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 매출 예측
-    st.subheader("🔮 매출 예측")
-    if len(monthly_sales) >= 2:
-        periods_to_forecast = st.slider("예측할 개월 수", 1, 24, 12)
-
-        try:
-            model = ExponentialSmoothing(
-                monthly_sales["매출"],
-                trend="add",
-                seasonal="add" if len(monthly_sales) >= 24 else None,
-                seasonal_periods=12 if len(monthly_sales) >= 24 else None,
-            )
-            model_fit = model.fit()
-            forecast = model_fit.forecast(periods_to_forecast)
-
-            forecast_dates = pd.date_range(
-                start=monthly_sales["월"].iloc[-1] + pd.offsets.MonthBegin(),
-                periods=periods_to_forecast,
-                freq="MS"
-            )
-            forecast_df = pd.DataFrame({"예측 날짜": forecast_dates, "예상 매출": forecast})
-
-            # 예측 그래프
-            forecast_fig = px.line(
-                forecast_df, x="예측 날짜", y="예상 매출", title="예상 매출 추이", labels={"예상 매출": "매출(원)", "예측 날짜": "날짜"}
-            )
-            forecast_fig.add_scatter(x=monthly_sales["월"], y=monthly_sales["매출"], mode="lines", name="실제 매출")
-            st.plotly_chart(forecast_fig, use_container_width=True)
-
-            # 예측 결과 다운로드
-            st.download_button(
-                label="📥 예측 결과 다운로드",
-                data=forecast_df.to_csv(index=False).encode("utf-8"),
-                file_name="forecast.csv",
-                mime="text/csv"
-            )
-        except Exception as e:
-            st.error(f"예측 중 오류가 발생했습니다: {e}")
-    else:
-        st.warning("데이터가 부족하여 매출 예측을 수행할 수 없습니다.")
-
     # YouTube 데이터 검색
     if youtube_keyword:
         st.subheader(f"🔍 YouTube 검색 결과 - '{youtube_keyword}'")
@@ -207,7 +156,7 @@ if uploaded_file:
 
         # 데이터 표시 (Streamlit HTML 렌더링 사용)
         st.write(
-            youtube_df[["제목", "링크", "설명", "채널명", "게시일"]].to_html(escape=False, index=False),
+            youtube_df[["게시일", "채널명", "구독자수", "제목", "링크", "설명"]].to_html(escape=False, index=False),
             unsafe_allow_html=True
         )
 
