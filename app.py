@@ -5,7 +5,7 @@ import plotly.express as px
 from googleapiclient.discovery import build
 
 # YouTube API 키
-YOUTUBE_API_KEY = "YOUR_API_KEY"  # 여기에 API 키를 입력하세요.
+YOUTUBE_API_KEY = "AIzaSyAHjsvQRyMnFVsjbFgj02Ws5dXMgnTOD0M"  # 여기에 API 키를 입력하세요.
 
 # YouTube API 클라이언트 초기화
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
