@@ -158,6 +158,14 @@ if uploaded_file:
     st.subheader("📋 필터링된 매출 데이터")
     st.dataframe(filtered_data)
 
+    # 매출 데이터 다운로드 버튼
+    st.download_button(
+        label="📥 매출 데이터 다운로드 (CSV)",
+        data=filtered_data.to_csv(index=False).encode("utf-8"),
+        file_name="filtered_sales_data.csv",
+        mime="text/csv"
+    )
+
     # 매출 시각화 및 예측
     st.subheader("📈 매출 추이 시각화")
     monthly_sales = filtered_data.copy()
