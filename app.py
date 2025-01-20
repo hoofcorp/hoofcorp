@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import plotly.express as px
-from st_aggrid import AgGrid, GridOptionsBuilder
 from googleapiclient.discovery import build
 
 # YouTube API 키
@@ -200,21 +199,9 @@ if uploaded_file:
         youtube_data = fetch_youtube_data(youtube_keyword, max_results)
         youtube_df = pd.DataFrame(youtube_data)
 
-        # AgGrid로 정렬 가능한 테이블 생성
-        gb = GridOptionsBuilder.from_dataframe(youtube_df)
-        gb.configure_default_column(editable=False, sortable=True)
-        gb.configure_column("링크", cellRenderer="LinkRenderer")  # 링크 열 클릭 가능
-        grid_options = gb.build()
-
-        # AgGrid 표시
+        # 데이터프레임 표시
         st.markdown("YouTube 검색 결과를 정렬하려면 열 헤더를 클릭하세요:")
-        AgGrid(
-            youtube_df,
-            gridOptions=grid_options,
-            enable_enterprise_modules=False,
-            height=400,
-            theme="streamlit",
-        )
+        st.dataframe(youtube_df)
 
         # YouTube 데이터 다운로드 버튼
         st.download_button(
